@@ -13,3 +13,14 @@ wheels/
 data/
 reports/
 logs/
+
+# Testing
+.coverage
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
