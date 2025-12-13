@@ -22,7 +22,7 @@ class TestSalesAnalyticsMonthly:
 
         result = aggregator.monthly_sales(enriched_orders_df=enriched_orders_sample)
 
-        check.equal(result.iloc[0]["order_month"], result.iloc[0]["order_month"])
+        check.is_false(result["order_month"].isnull().any())
         check.is_true(result["order_month"].is_monotonic_increasing)
         check.equal(result["orders"].sum(), len(enriched_orders_sample))
 
