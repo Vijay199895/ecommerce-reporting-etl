@@ -30,14 +30,14 @@ class ReviewAnalyticsAggregator:
                     else pd.NA
                 ],
                 "positive_rate": [
-                    reviews_df.get(
-                        "is_positive", pd.Series(False, index=reviews_df.index)
-                    ).mean()
+                    reviews_df["is_positive"].mean()
+                    if "is_positive" in reviews_df.columns
+                    else 0.0
                 ],
                 "negative_rate": [
-                    reviews_df.get(
-                        "is_negative", pd.Series(False, index=reviews_df.index)
-                    ).mean()
+                    reviews_df["is_negative"].mean()
+                    if "is_negative" in reviews_df.columns
+                    else 0.0
                 ],
                 "review_count": [len(reviews_df)],
             }
