@@ -2,8 +2,6 @@
 Módulo que se encarga del enriquecimiento de la tabla "inventory" para posterior análisis.
 """
 
-from typing import Optional
-
 import pandas as pd
 
 from transform.cleaners.inventory_cleaner import InventoryCleaner
@@ -23,25 +21,24 @@ class InventoryEnricher:
     def enrich(
         self,
         inventory_df: pd.DataFrame,
-        products_df: Optional[pd.DataFrame] = None,
-        warehouses_df: Optional[pd.DataFrame] = None,
+        products_df: pd.DataFrame,
+        warehouses_df: pd.DataFrame,
     ) -> pd.DataFrame:
         """
         Ejecuta el pipeline de enriquecimiento y devuelve tabla de inventory lista para análisis de agregación.
         """
-        self.logger.info("Iniciando enriquecimiento de inventario")
+        self.logger.info("Iniciando enriquecimiento de tabla 'inventory'")
         inventory_df = self._validate_and_clean_inventory(inventory_df)
 
-        if products_df is not None:
-            inventory_df = self._join_products(inventory_df, products_df)
-        if warehouses_df is not None:
-            inventory_df = self._join_warehouses(inventory_df, warehouses_df)
+        enriched_df = self._join_products(inventory_df, products_df)
+        enriched_df = self._join_warehouses(enriched_df, warehouses_df)
+        enriched_df = self._add_derived_columns(enriched_df)
 
-        inventory_df = self._add_derived_columns(inventory_df)
         self.logger.info(
-            "Enriquecimiento de inventario completado: %s filas", len(inventory_df)
+            "Enriquecimiento de tabla 'inventory' completado: %s filas",
+            len(enriched_df),
         )
-        return inventory_df
+        return enriched_df
 
     def _validate_and_clean_inventory(self, inventory_df: pd.DataFrame) -> pd.DataFrame:
         validator = SchemaValidator(inventory_df)
