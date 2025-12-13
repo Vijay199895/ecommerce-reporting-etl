@@ -70,10 +70,7 @@ def transform_stage(tables: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         orders_df=tables["orders"],
         customers_df=tables["customers"],
         promotions_df=tables["promotions"],
-        order_items_df=tables["order_items"],
-        products_df=tables["products"],
-        categories_df=tables["categories"],
-        brands_df=tables["brands"],
+        order_items_df=tables["order_items"]
     )
 
     # Inventario
