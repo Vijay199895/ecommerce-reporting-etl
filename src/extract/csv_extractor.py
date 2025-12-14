@@ -22,10 +22,9 @@ class CSVExtractor(BaseExtractor):
         Inicializa el extractor de CSV.
 
         Args:
-            source_path: Ruta al archivo CSV
+            source_path: Directorio base donde se encuentran los archivos CSV
             encoding: Codificación del archivo (default: 'utf-8')
             sep: Separador de columnas (default: ',')
-            parse_dates: Lista de columnas a parsear como fechas
 
         Raises:
             SourceNotFoundError: Si el archivo no existe
@@ -85,7 +84,7 @@ class CSVExtractor(BaseExtractor):
             self._profile_data(df)
             self._update_extraction_timestamp()
             summary = self.get_summary()
-            self.logger.info("Datos guardados en %s:\n%s", source_path, summary)
+            self.logger.info("Datos extraídos desde %s:\n%s", source_path, summary)
             return df
         except Exception as exc:
             self.logger.error("Error al extraer CSV desde %s: %s", source_path, exc)
