@@ -79,6 +79,6 @@ class InventoryCleaner(DataCleaner):
         """
         Verifica columnas esenciales de inventario antes de enriquecer y calcular riesgos de stock.
         """
-        validator = SchemaValidator(df)
+        validator = SchemaValidator(df, self.logger)
         validator.validate_required_columns(self.REQUIRED_COLUMNS)
         return df

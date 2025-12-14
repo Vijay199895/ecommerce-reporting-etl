@@ -41,7 +41,7 @@ class InventoryEnricher:
         return enriched_df
 
     def _validate_and_clean_inventory(self, inventory_df: pd.DataFrame) -> pd.DataFrame:
-        validator = SchemaValidator(inventory_df)
+        validator = SchemaValidator(inventory_df, self.logger)
         validator.validate_required_columns(InventoryCleaner.REQUIRED_COLUMNS)
         return self.cleaner.clean(inventory_df)
 

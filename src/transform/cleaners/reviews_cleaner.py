@@ -74,6 +74,6 @@ class ReviewsCleaner(DataCleaner):
         """
         Comprueba columnas requeridas de la reseña antes de agregaciones de calidad y volumen.
         """
-        validator = SchemaValidator(df)
+        validator = SchemaValidator(df, self.logger)
         validator.validate_required_columns(self.REQUIRED_COLUMNS)
         return df

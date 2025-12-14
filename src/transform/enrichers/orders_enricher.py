@@ -48,13 +48,13 @@ class OrdersEnricher:
         return enriched_df
 
     def _validate_and_clean_orders(self, orders_df: pd.DataFrame) -> pd.DataFrame:
-        validator = SchemaValidator(orders_df)
+        validator = SchemaValidator(orders_df, self.logger)
         validator.validate_required_columns(OrdersCleaner.REQUIRED_COLUMNS)
         return self.cleaner.clean(orders_df)
 
     def _validate_customers(self, customers_df: pd.DataFrame) -> pd.DataFrame:
         expected = ["customer_id", "segment", "registration_date"]
-        validator = SchemaValidator(customers_df)
+        validator = SchemaValidator(customers_df, self.logger)
         validator.validate_required_columns(expected)
         customers_df = customers_df.copy()
         customers_df["registration_date"] = pd.to_datetime(
@@ -68,7 +68,7 @@ class OrdersEnricher:
 
     def _validate_promotions(self, promotions_df: pd.DataFrame) -> pd.DataFrame:
         expected = ["promotion_id", "promotion_type", "discount_value", "is_active"]
-        validator = SchemaValidator(promotions_df)
+        validator = SchemaValidator(promotions_df, self.logger)
         validator.validate_required_columns(expected)
         promotions_df = promotions_df.copy()
         promotions_df["start_date"] = pd.to_datetime(
@@ -81,7 +81,7 @@ class OrdersEnricher:
 
     def _validate_order_items(self, order_items_df: pd.DataFrame) -> pd.DataFrame:
         expected = ["order_id", "product_id", "quantity", "unit_price", "subtotal"]
-        validator = SchemaValidator(order_items_df)
+        validator = SchemaValidator(order_items_df, self.logger)
         validator.validate_required_columns(expected)
         order_items_df = order_items_df.copy()
         for col in ["quantity", "unit_price", "subtotal"]:

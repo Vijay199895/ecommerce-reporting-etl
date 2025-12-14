@@ -150,7 +150,7 @@ class OrdersCleaner(DataCleaner):
         """
         Verifica presencia de columnas requeridas y tipos esperados para asegurar consistencia previa al enriquecimiento.
         """
-        validator = SchemaValidator(df)
+        validator = SchemaValidator(df, self.logger)
         validator.validate_required_columns(self.REQUIRED_COLUMNS)
 
         expected_types = {

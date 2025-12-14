@@ -40,7 +40,7 @@ class ReviewsEnricher:
         return enriched_df
 
     def _validate_and_clean_reviews(self, reviews_df: pd.DataFrame) -> pd.DataFrame:
-        validator = SchemaValidator(reviews_df)
+        validator = SchemaValidator(reviews_df, self.logger)
         validator.validate_required_columns(ReviewsCleaner.REQUIRED_COLUMNS)
         return self.cleaner.clean(reviews_df)
 

@@ -9,6 +9,18 @@ import pandas as pd
 from utils.validators import SchemaValidator
 
 
+class MockLogger:
+    """
+    Logger simulado para pruebas.
+    """
+
+    def error(self, msg: str) -> None:
+        pass
+
+    def info(self, msg: str) -> None:
+        pass
+
+
 @pytest.mark.unit
 @pytest.mark.smoke
 class TestSchemaValidatorRequiredColumns:
@@ -21,7 +33,7 @@ class TestSchemaValidatorRequiredColumns:
         self, sample_valid_dataframe
     ):
         """Debe pasar la validación cuando todas las columnas requeridas están presentes."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         required = ["id", "name", "price"]
 
         result = validator.validate_required_columns(required)
@@ -32,7 +44,7 @@ class TestSchemaValidatorRequiredColumns:
         self, sample_valid_dataframe
     ):
         """Debe pasar incluso si hay columnas adicionales (solo valida que existan las requeridas)."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         required = ["id", "name"]  # Solo validamos 2 de 6 columnas
 
         result = validator.validate_required_columns(required)
@@ -48,7 +60,7 @@ class TestSchemaValidatorRequiredColumns:
         self, dataframe_missing_required_columns
     ):
         """Debe fallar cuando falta una columna requerida."""
-        validator = SchemaValidator(dataframe_missing_required_columns)
+        validator = SchemaValidator(dataframe_missing_required_columns, MockLogger())
         required = ["id", "name", "price"]  # 'price' falta
 
         with pytest.raises(ValueError) as exc_info:
@@ -61,7 +73,7 @@ class TestSchemaValidatorRequiredColumns:
         self, dataframe_missing_required_columns
     ):
         """Debe reportar todas las columnas faltantes en el error."""
-        validator = SchemaValidator(dataframe_missing_required_columns)
+        validator = SchemaValidator(dataframe_missing_required_columns, MockLogger())
         required = ["id", "name", "price", "quantity", "category"]
 
         with pytest.raises(ValueError) as exc_info:
@@ -76,7 +88,7 @@ class TestSchemaValidatorRequiredColumns:
         self, sample_valid_dataframe
     ):
         """Debe pasar cuando no se requieren columnas específicas."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         required = []
 
         result = validator.validate_required_columns(required)
@@ -87,7 +99,7 @@ class TestSchemaValidatorRequiredColumns:
         self, sample_valid_dataframe
     ):
         """Debe ser sensible a mayúsculas/minúsculas en nombres de columnas."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         required = ["ID", "Name", "Price"]  # Mayúsculas
 
         with pytest.raises(ValueError):
@@ -105,7 +117,7 @@ class TestSchemaValidatorExtraColumns:
         self, sample_valid_dataframe
     ):
         """Debe pasar cuando el schema es exactamente el esperado."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         expected = list(sample_valid_dataframe.columns)
 
         result = validator.validate_no_extra_columns(expected)
@@ -116,7 +128,7 @@ class TestSchemaValidatorExtraColumns:
         self, dataframe_with_extra_columns
     ):
         """Debe fallar cuando hay columnas adicionales no esperadas."""
-        validator = SchemaValidator(dataframe_with_extra_columns)
+        validator = SchemaValidator(dataframe_with_extra_columns, MockLogger())
         expected = ["id", "name", "price"]
 
         with pytest.raises(ValueError) as exc_info:
@@ -133,7 +145,7 @@ class TestSchemaValidatorExtraColumns:
         Debe fallar si esperamos menos columnas de las que existen.
         Esta validación es estricta: solo permite el schema exacto.
         """
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         expected = ["id", "name"]  # Solo 2 de 6 columnas
 
         with pytest.raises(ValueError):
@@ -142,7 +154,7 @@ class TestSchemaValidatorExtraColumns:
     def test_validate_no_extra_columns_should_work_with_empty_dataframe(self):
         """Debe funcionar correctamente con DataFrames vacíos."""
         df = pd.DataFrame(columns=["a", "b", "c"])
-        validator = SchemaValidator(df)
+        validator = SchemaValidator(df, MockLogger())
         expected = ["a", "b", "c"]
 
         result = validator.validate_no_extra_columns(expected)
@@ -161,7 +173,7 @@ class TestSchemaValidatorDataTypes:
         self, sample_valid_dataframe
     ):
         """Debe pasar cuando todos los tipos son correctos."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         expected_types = {
             "id": "int64",
             "name": "object",
@@ -177,7 +189,7 @@ class TestSchemaValidatorDataTypes:
         self, dataframe_with_wrong_types
     ):
         """Debe fallar cuando hay discrepancia de tipos."""
-        validator = SchemaValidator(dataframe_with_wrong_types)
+        validator = SchemaValidator(dataframe_with_wrong_types, MockLogger())
         expected_types = {
             "id": "int64",  # Es 'object' en realidad
             "price": "float64",  # Es 'object' en realidad
@@ -194,7 +206,7 @@ class TestSchemaValidatorDataTypes:
         self, sample_valid_dataframe
     ):
         """Debe validar correctamente tipos datetime64."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         expected_types = {"created_at": "datetime64[ns]"}
 
         result = validator.validate_data_types(expected_types)
@@ -205,7 +217,7 @@ class TestSchemaValidatorDataTypes:
         self, sample_valid_dataframe
     ):
         """Debe permitir validar solo un subconjunto de columnas."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         expected_types = {"id": "int64", "price": "float64"}  # Solo 2 columnas
 
         result = validator.validate_data_types(expected_types)
@@ -216,7 +228,7 @@ class TestSchemaValidatorDataTypes:
         self, sample_valid_dataframe
     ):
         """Debe fallar si se intenta validar una columna que no existe."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         expected_types = {"nonexistent_column": "int64"}
 
         with pytest.raises(ValueError):
@@ -234,7 +246,7 @@ class TestSchemaValidatorNumericRanges:
         self, sample_valid_dataframe
     ):
         """Debe pasar cuando todos los valores están en el rango."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
 
         result = validator.validate_numeric_range("price", min_value=0, max_value=100)
 
@@ -244,7 +256,7 @@ class TestSchemaValidatorNumericRanges:
         self, dataframe_with_invalid_ranges
     ):
         """Debe fallar cuando hay valores menores al mínimo permitido."""
-        validator = SchemaValidator(dataframe_with_invalid_ranges)
+        validator = SchemaValidator(dataframe_with_invalid_ranges, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_numeric_range("price", min_value=0)
@@ -256,7 +268,7 @@ class TestSchemaValidatorNumericRanges:
         self, dataframe_with_invalid_ranges
     ):
         """Debe fallar cuando hay valores mayores al máximo permitido."""
-        validator = SchemaValidator(dataframe_with_invalid_ranges)
+        validator = SchemaValidator(dataframe_with_invalid_ranges, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_numeric_range("price", max_value=100)
@@ -268,7 +280,7 @@ class TestSchemaValidatorNumericRanges:
         self, sample_valid_dataframe
     ):
         """Debe validar solo el mínimo cuando no se especifica máximo."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
 
         result = validator.validate_numeric_range("quantity", min_value=0)
 
@@ -278,7 +290,7 @@ class TestSchemaValidatorNumericRanges:
         self, sample_valid_dataframe
     ):
         """Debe validar solo el máximo cuando no se especifica mínimo."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
 
         result = validator.validate_numeric_range("quantity", max_value=1000)
 
@@ -288,7 +300,7 @@ class TestSchemaValidatorNumericRanges:
         self, dataframe_with_nulls
     ):
         """Debe permitir valores nulos por defecto."""
-        validator = SchemaValidator(dataframe_with_nulls)
+        validator = SchemaValidator(dataframe_with_nulls, MockLogger())
 
         result = validator.validate_numeric_range(
             "price", min_value=0, max_value=100, allow_nulls=True
@@ -300,7 +312,7 @@ class TestSchemaValidatorNumericRanges:
         self, dataframe_with_nulls
     ):
         """Debe fallar cuando hay nulos y no están permitidos."""
-        validator = SchemaValidator(dataframe_with_nulls)
+        validator = SchemaValidator(dataframe_with_nulls, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_numeric_range(
@@ -313,7 +325,7 @@ class TestSchemaValidatorNumericRanges:
         self, sample_valid_dataframe
     ):
         """Debe validar que los límites son inclusivos."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
         # price tiene valores: 10.50, 25.00, 15.75, 30.00, 12.50
 
         result = validator.validate_numeric_range(
@@ -335,7 +347,7 @@ class TestSchemaValidatorNullValues:
         self, sample_valid_dataframe
     ):
         """Debe pasar cuando no hay valores nulos."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
 
         result = validator.validate_no_nulls()
 
@@ -343,7 +355,7 @@ class TestSchemaValidatorNullValues:
 
     def test_validate_no_nulls_should_fail_when_nulls_exist(self, dataframe_with_nulls):
         """Debe fallar cuando hay valores nulos."""
-        validator = SchemaValidator(dataframe_with_nulls)
+        validator = SchemaValidator(dataframe_with_nulls, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_no_nulls()
@@ -357,7 +369,7 @@ class TestSchemaValidatorNullValues:
         self, dataframe_with_nulls
     ):
         """Debe validar solo las columnas especificadas."""
-        validator = SchemaValidator(dataframe_with_nulls)
+        validator = SchemaValidator(dataframe_with_nulls, MockLogger())
         columns_to_check = ["id"]  # Solo validamos 'id' que tiene 1 nulo
 
         with pytest.raises(ValueError) as exc_info:
@@ -380,7 +392,7 @@ class TestSchemaValidatorNullValues:
                 "price": [10.0, None, 30.0],  # Con nulos
             }
         )
-        validator = SchemaValidator(df)
+        validator = SchemaValidator(df, MockLogger())
 
         result = validator.validate_no_nulls(columns=["id"])
 
@@ -388,7 +400,7 @@ class TestSchemaValidatorNullValues:
 
     def test_validate_no_nulls_should_report_null_counts(self, dataframe_with_nulls):
         """Debe reportar la cantidad de nulos encontrados."""
-        validator = SchemaValidator(dataframe_with_nulls)
+        validator = SchemaValidator(dataframe_with_nulls, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_no_nulls()
@@ -409,7 +421,7 @@ class TestSchemaValidatorUniqueValues:
         self, sample_valid_dataframe
     ):
         """Debe pasar cuando todos los valores son únicos."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
 
         result = validator.validate_unique_values(["id"])
 
@@ -419,7 +431,7 @@ class TestSchemaValidatorUniqueValues:
         self, dataframe_with_duplicates
     ):
         """Debe fallar cuando hay valores duplicados."""
-        validator = SchemaValidator(dataframe_with_duplicates)
+        validator = SchemaValidator(dataframe_with_duplicates, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_unique_values(["id"])
@@ -432,7 +444,7 @@ class TestSchemaValidatorUniqueValues:
         self, sample_valid_dataframe
     ):
         """Debe validar múltiples columnas a la vez."""
-        validator = SchemaValidator(sample_valid_dataframe)
+        validator = SchemaValidator(sample_valid_dataframe, MockLogger())
 
         result = validator.validate_unique_values(["id", "name"])
 
@@ -442,7 +454,7 @@ class TestSchemaValidatorUniqueValues:
         self, dataframe_with_duplicates
     ):
         """Debe reportar cuántos duplicados se encontraron."""
-        validator = SchemaValidator(dataframe_with_duplicates)
+        validator = SchemaValidator(dataframe_with_duplicates, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_unique_values(["id"])
@@ -455,7 +467,7 @@ class TestSchemaValidatorUniqueValues:
         self, dataframe_with_duplicates
     ):
         """Debe reportar todas las columnas con duplicados."""
-        validator = SchemaValidator(dataframe_with_duplicates)
+        validator = SchemaValidator(dataframe_with_duplicates, MockLogger())
 
         with pytest.raises(ValueError) as exc_info:
             validator.validate_unique_values(["id", "name"])
