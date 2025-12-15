@@ -7,6 +7,15 @@ from typing import Dict, List, Optional
 
 import pandas as pd
 
+from exceptions import (
+    DataTypeMismatchError,
+    DuplicateKeyError,
+    MissingRequiredColumnsError,
+    NullConstraintError,
+    RangeValidationError,
+    UnexpectedColumnsError,
+)
+
 
 class SchemaValidator:
     """
@@ -38,20 +47,17 @@ class SchemaValidator:
             bool: True si todas las columnas están presentes
 
         Raises:
-            ValueError: Si alguna columna requerida falta
+            MissingRequiredColumnsError: Si alguna columna requerida falta
         """
         actual_columns = set(self.df.columns)
         required_set = set(required_columns)
         missing_columns = required_set - actual_columns
-
         if missing_columns:
-            error_msg = (
-                f"Columnas faltantes en el DataFrame: {sorted(missing_columns)}. "
-                f"Columnas presentes: {sorted(actual_columns)}"
+            raise MissingRequiredColumnsError(
+                missing_columns=list(missing_columns),
+                logger=self.logger,
+                available_columns=list(actual_columns),
             )
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
         success_msg = (
             f"Todas las columnas requeridas están presentes: {sorted(required_columns)}"
         )
@@ -62,8 +68,6 @@ class SchemaValidator:
         """
         Valida que no existan columnas adicionales no esperadas.
 
-        Útil para validaciones estrictas donde el schema debe ser exacto.
-
         Args:
             expected_columns: Lista de columnas que deben existir (y solo esas)
 
@@ -71,20 +75,17 @@ class SchemaValidator:
             bool: True si no hay columnas extras
 
         Raises:
-            ValueError: Si existen columnas no esperadas
+            UnexpectedColumnsError: Si existen columnas no esperadas
         """
         actual_columns = set(self.df.columns)
         expected_set = set(expected_columns)
         extra_columns = actual_columns - expected_set
-
         if extra_columns:
-            error_msg = (
-                f"Columnas no esperadas en el DataFrame: {sorted(extra_columns)}. "
-                f"Solo se esperaban: {sorted(expected_columns)}"
+            raise UnexpectedColumnsError(
+                extra_columns=list(extra_columns),
+                logger=self.logger,
+                expected_columns=list(expected_set),
             )
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
         success_msg = "No hay columnas extras. Schema exacto validado."
         self.logger.info(success_msg)
         return True
@@ -101,15 +102,12 @@ class SchemaValidator:
             bool: True si todos los tipos coinciden
 
         Raises:
-            ValueError: Si algún tipo no coincide
+            DataTypeMismatchError: Si algún tipo no coincide
         """
         type_mismatches = []
-
         for column, expected_type in expected_types.items():
             self._check_column_in_df(column)
-
             actual_type = str(self.df[column].dtype)
-
             if not self._types_match(actual_type, expected_type):
                 type_mismatches.append(
                     {
@@ -118,12 +116,10 @@ class SchemaValidator:
                         "actual": actual_type,
                     }
                 )
-
         if type_mismatches:
-            error_msg = f"Tipos de datos no coinciden: {type_mismatches}"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
+            raise DataTypeMismatchError(
+                type_mismatches=type_mismatches, logger=self.logger
+            )
         success_msg = f"Todos los tipos de datos son correctos: {expected_types}"
         self.logger.info(success_msg)
         return True
@@ -148,55 +144,63 @@ class SchemaValidator:
             bool: True si todos los valores están en rango
 
         Raises:
-            ValueError: Si hay valores fuera de rango o nulos no permitidos
+            NullConstraintError: Si hay valores nulos no permitidos
+            RangeValidationError: Si hay valores fuera de rango
         """
         self._check_column_in_df(column)
-
         col_data = self.df[column]
-
         # Validar nulos
         if not allow_nulls and col_data.isnull().any():
-            null_count = col_data.isnull().sum()
-            error_msg = f"Columna '{column}' contiene {null_count} valores nulos (no permitidos)"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
-        # Trabajar solo con valores no nulos para validación de rango
+            null_count = int(col_data.isnull().sum())
+            null_percentage = round((null_count / len(self.df)) * 100, 2)
+            raise NullConstraintError(
+                columns_with_nulls=[
+                    {
+                        "columna": column,
+                        "valores_nulos": null_count,
+                        "porcentaje": null_percentage,
+                    }
+                ],
+                logger=self.logger,
+            )
         non_null_data = col_data.dropna()
-
         if len(non_null_data) == 0:
             warning_msg = (
                 f"Columna '{column}' no tiene valores no-nulos para validar rango"
             )
             self.logger.warning(warning_msg)
             return True
-
         # Validar rango mínimo
         if min_value is not None:
             violations = non_null_data < min_value
             if violations.any():
-                violation_count = violations.sum()
-                min_found = non_null_data.min()
-                error_msg = (
-                    f"Columna '{column}': {violation_count} valores por debajo del mínimo "
-                    f"permitido {min_value}. Valor mínimo encontrado: {min_found}"
+                violation_count = int(violations.sum())
+                min_found = float(non_null_data.min())
+                raise RangeValidationError(
+                    column=column,
+                    logger=self.logger,
+                    min_value=min_value,
+                    max_value=max_value,
+                    violation_count=violation_count,
+                    actual_min=min_found,
+                    actual_max=float(non_null_data.max()),
                 )
-                self.logger.error(error_msg)
-                raise ValueError(error_msg)
 
         # Validar rango máximo
         if max_value is not None:
             violations = non_null_data > max_value
             if violations.any():
-                violation_count = violations.sum()
-                max_found = non_null_data.max()
-                error_msg = (
-                    f"Columna '{column}': {violation_count} valores por encima del máximo "
-                    f"permitido {max_value}. Valor máximo encontrado: {max_found}"
+                violation_count = int(violations.sum())
+                max_found = float(non_null_data.max())
+                raise RangeValidationError(
+                    column=column,
+                    logger=self.logger,
+                    min_value=min_value,
+                    max_value=max_value,
+                    violation_count=violation_count,
+                    actual_min=float(non_null_data.min()),
+                    actual_max=max_found,
                 )
-                self.logger.error(error_msg)
-                raise ValueError(error_msg)
-
         range_str = (
             f"[{min_value if min_value is not None else '-inf'}, "
             f"{max_value if max_value is not None else '+inf'}]"
@@ -218,14 +222,12 @@ class SchemaValidator:
             bool: True si no hay valores nulos
 
         Raises:
-            ValueError: Si se encuentran valores nulos
+            NullConstraintError: Si se encuentran valores nulos
         """
         cols_to_check = columns if columns else list(self.df.columns)
-
         columns_with_nulls = []
         for col in cols_to_check:
             self._check_column_in_df(col)
-
             null_count = self.df[col].isnull().sum()
             if null_count > 0:
                 null_percentage = round((null_count / len(self.df)) * 100, 2)
@@ -236,12 +238,10 @@ class SchemaValidator:
                         "porcentaje": null_percentage,
                     }
                 )
-
         if columns_with_nulls:
-            error_msg = f"Columnas con valores nulos: {columns_with_nulls}"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
+            raise NullConstraintError(
+                columns_with_nulls=columns_with_nulls, logger=self.logger
+            )
         success_msg = f"Ninguna columna contiene valores nulos: {cols_to_check}"
         self.logger.info(success_msg)
         return True
@@ -250,8 +250,6 @@ class SchemaValidator:
         """
         Valida que las columnas especificadas contengan valores únicos (sin duplicados).
 
-        Útil para validar columnas de ID o claves primarias.
-
         Args:
             columns: Lista de columnas que deben tener valores únicos
 
@@ -259,24 +257,22 @@ class SchemaValidator:
             bool: True si todas las columnas tienen valores únicos
 
         Raises:
-            ValueError: Si se encuentran valores duplicados
+            DuplicateKeyError: Si se encuentran valores duplicados
         """
         columns_with_duplicates = []
-
+        total_duplicates = 0
         for col in columns:
             self._check_column_in_df(col)
-
             duplicate_count = self.df[col].duplicated().sum()
             if duplicate_count > 0:
-                columns_with_duplicates.append(
-                    {"columna": col, "duplicados": int(duplicate_count)}
-                )
-
+                columns_with_duplicates.append(col)
+                total_duplicates += duplicate_count
         if columns_with_duplicates:
-            error_msg = f"Columnas con valores duplicados: {columns_with_duplicates}"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
-
+            raise DuplicateKeyError(
+                columns=columns_with_duplicates,
+                logger=self.logger,
+                duplicate_count=int(total_duplicates),
+            )
         success_msg = f"Todas las columnas tienen valores únicos: {columns}"
         self.logger.info(success_msg)
         return True
@@ -289,12 +285,14 @@ class SchemaValidator:
             column: Nombre de la columna a verificar
 
         Raises:
-            ValueError: Si la columna no existe
+            MissingRequiredColumnsError: Si la columna no existe
         """
         if column not in self.df.columns:
-            error_msg = f"Columna '{column}' no existe en el DataFrame"
-            self.logger.error(error_msg)
-            raise ValueError(error_msg)
+            raise MissingRequiredColumnsError(
+                missing_columns=[column],
+                logger=self.logger,
+                available_columns=list(self.df.columns),
+            )
 
     @staticmethod
     def _types_match(actual_type: str, expected_type: str) -> bool:
