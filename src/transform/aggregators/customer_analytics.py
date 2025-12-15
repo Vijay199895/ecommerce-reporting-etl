@@ -14,8 +14,8 @@ class CustomerAnalyticsAggregator:
     Responde preguntas de negocio sobre clientes a partir de órdenes enriquecidas.
     """
 
-    def __init__(self, logger=transform_logger):
-        self.logger = logger
+    def __init__(self):
+        self.logger = transform_logger
 
     def top_spenders(
         self,
@@ -27,6 +27,14 @@ class CustomerAnalyticsAggregator:
         Calcula clientes con mayor gasto total, aplica filtro por percentil si se indica,
         y devuelve el top ordenado con total gastado, número de órdenes, ticket promedio
         y fecha de última compra junto con el email del cliente para posible seguimiento.
+
+        Args:
+            enriched_orders_df: DataFrame de órdenes enriquecidas
+            top_n: Número de clientes a retornar (default: 5)
+            percentile: Percentil para filtrar clientes por gasto total (default: 0.8)
+
+        Returns:
+            DataFrame con clientes top spenders.
         """
         grouped = (
             enriched_orders_df.groupby("customer_id")
@@ -34,7 +42,7 @@ class CustomerAnalyticsAggregator:
                 total_orders=("order_id", "count"),
                 total_spent=("total_amount", "sum"),
                 last_order_date=("order_date", "max"),
-                email=("email", "first")
+                email=("email", "first"),
             )
             .reset_index()
         )
@@ -48,7 +56,6 @@ class CustomerAnalyticsAggregator:
         self.logger.info("Top spenders calculados: %s clientes", len(result))
         return result
 
-
     def recurring_customers(
         self, enriched_orders_df: pd.DataFrame, min_orders: int = 2
     ) -> pd.DataFrame:
@@ -56,23 +63,35 @@ class CustomerAnalyticsAggregator:
         Identifica clientes con un número de órdenes mayor o igual al mínimo especificado,
         devolviendo el recuento de órdenes por cliente ordenado de mayor a menor. Se incluye
         el email del cliente para posible seguimiento.
+
+        Args:
+            enriched_orders_df: DataFrame de órdenes enriquecidas
+            min_orders: Mínimo número de órdenes para considerar un cliente como recurrente (default: 2)
+
+        Returns:
+            DataFrame con clientes recurrentes.
         """
         grouped = (
             enriched_orders_df.groupby("customer_id")
-            .agg(
-                total_orders=("order_id", "count"),
-                email=("email", "first")
-            )
+            .agg(total_orders=("order_id", "count"), email=("email", "first"))
             .reset_index()
         )
         recurring = grouped[grouped["total_orders"] >= min_orders]
-        self.logger.info("Clientes recurrentes (>= %s órdenes): %s", min_orders, len(recurring))
+        self.logger.info(
+            "Clientes recurrentes (>= %s órdenes): %s", min_orders, len(recurring)
+        )
         return recurring.sort_values("total_orders", ascending=False)
 
     def average_ticket_overall(self, enriched_orders_df: pd.DataFrame) -> float:
         """
         Calcula el ticket promedio global considerando el total_amount de todas las órdenes
         disponibles; retorna 0.0 si no hay datos válidos.
+
+        Args:
+            enriched_orders_df: DataFrame de órdenes enriquecidas
+
+        Returns:
+            Ticket promedio como float
         """
         avg_ticket = enriched_orders_df["total_amount"].mean()
         self.logger.info("Ticket promedio calculado: %.2f", avg_ticket)
