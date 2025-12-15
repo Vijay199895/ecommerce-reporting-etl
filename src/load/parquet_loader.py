@@ -3,10 +3,10 @@ Loader especializado para archivos Parquet.
 """
 
 from pathlib import Path
-from typing import Any
 
 import pandas as pd
 
+from exceptions import LoadWriteError, TargetNameNotSpecifiedError, TargetNotFoundError
 from load.base_loader import BaseLoader
 
 
@@ -20,7 +20,7 @@ class ParquetLoader(BaseLoader):
 
     def __init__(
         self,
-        target_path: Path,
+        target_path: str,
         compression: str = "snappy",
         index: bool = False,
         engine: str = "pyarrow",
@@ -29,7 +29,7 @@ class ParquetLoader(BaseLoader):
         Inicializa el loader de Parquet.
 
         Args:
-            target_path: Ruta al archivo Parquet de destino
+            target_path: Directorio base donde se guardaran los archivos Parquet
             compression: Método de compresión (default: 'snappy')
             index: Incluir índice en el archivo (default: False)
             engine: Motor para leer/escribir Parquet (default: 'pyarrow')
@@ -38,7 +38,7 @@ class ParquetLoader(BaseLoader):
             TargetNotFoundError: Si el directorio de destino no existe
         """
         super().__init__()
-        self._validate_target_exists(target_path)
+        self._validate_target_exists(Path(target_path))
         self.target_path = Path(target_path)
         self.target_description = str(self.target_path)
         self.compression = compression
@@ -59,11 +59,13 @@ class ParquetLoader(BaseLoader):
         Carga datos hacia un archivo Parquet.
 
         Raises:
-            ValueError: Si el nombre del archivo está vacío
-            Exception: Para otros errores durante la extracción
+            TargetNameNotSpecifiedError: Si el nombre del archivo está vacío
+            LoadWriteError: Si ocurre un error durante la escritura
         """
         if not name:
-            raise ValueError("El parámetro 'name' no puede estar vacío.")
+            raise TargetNameNotSpecifiedError(
+                logger=self.logger, loader_type="ParquetLoader"
+            )
 
         target_path = self.target_path / f"{name}.parquet"
 
@@ -76,16 +78,63 @@ class ParquetLoader(BaseLoader):
                 compression=self.compression,
                 engine=self.engine,
             )
+        except PermissionError as exc:
+            raise LoadWriteError(
+                str(target_path),
+                logger=self.logger,
+                original_error=exc,
+                context={
+                    "rows": len(df),
+                    "columns": len(df.columns),
+                    "compression": self.compression,
+                    "engine": self.engine,
+                    "reason": "Permiso denegado",
+                },
+            ) from exc
+        except ImportError as exc:
+            raise LoadWriteError(
+                str(target_path),
+                logger=self.logger,
+                original_error=exc,
+                context={
+                    "engine": self.engine,
+                    "reason": f"Motor '{self.engine}' no está instalado",
+                },
+            ) from exc
+        except OSError as exc:
+            raise LoadWriteError(
+                str(target_path),
+                logger=self.logger,
+                original_error=exc,
+                context={
+                    "rows": len(df),
+                    "columns": len(df.columns),
+                    "compression": self.compression,
+                    "engine": self.engine,
+                    "reason": "Error de sistema de archivos",
+                },
+            ) from exc
         except Exception as exc:
-            self.logger.error("Error al guardar Parquet en %s: %s", target_path, exc)
-            raise
+            raise LoadWriteError(
+                str(target_path),
+                logger=self.logger,
+                original_error=exc,
+                context={
+                    "rows": len(df),
+                    "columns": len(df.columns),
+                    "compression": self.compression,
+                    "engine": self.engine,
+                },
+            ) from exc
+
         self._profile_data_after_load(target_path)
 
         # Una vez el profiling completo se ha hecho, se puede loguear el resumen
         summary = self.get_summary()
-        self.logger.info(f"Datos guardados en {target_path}:\n{summary}")
+        success_msg = f"Archivo Parquet guardado en {target_path}:\n{summary}"
+        self.logger.info(success_msg)
 
-    def _validate_target_exists(self, target_location: Any) -> None:
+    def _validate_target_exists(self, target_location: Path) -> None:
         """
         Verifica que el destino de datos especificada existe.
 
@@ -96,10 +145,9 @@ class ParquetLoader(BaseLoader):
             TargetNotFoundError: Si el destino no existe
         """
         if not target_location.exists():
-            error_msg = f"Directorio de destino no existe: {target_location}"
-            self.logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
-
+            raise TargetNotFoundError(
+                str(target_location), logger=self.logger, target_type="directorio"
+            )
         success_msg = f"Directorio de destino encontrado: {target_location}"
         self.logger.info(success_msg)
         print(success_msg)
