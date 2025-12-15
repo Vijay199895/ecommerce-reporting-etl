@@ -30,25 +30,25 @@ class DataCleaner(ABC):
     Orquesta pasos comunes: nulos, duplicados, conversión de tipos y validación final.
     """
 
-    def __init__(self, logger=transform_logger):
-        self.logger = logger
+    def __init__(self):
+        self.logger = transform_logger
 
-    def clean(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def clean(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Ejecuta el pipeline de limpieza y devuelve un nuevo DataFrame.
         """
         self.logger.info("Iniciando limpieza: %s filas", len(df))
 
-        df = self.handle_nulls(df.copy(), **kwargs)
-        df = self.handle_duplicates(df, **kwargs)
-        df = self.convert_types(df, **kwargs)
-        df = self.validate_cleaned_data(df, **kwargs)
+        df = self.handle_nulls(df.copy())
+        df = self.handle_duplicates(df)
+        df = self.convert_types(df)
+        df = self.validate_cleaned_data(df)
 
         self.logger.info("Limpieza completada: %s filas", len(df))
         return df
 
     @abstractmethod
-    def handle_nulls(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def handle_nulls(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Implementa lógica de manejo de valores nulos con lógica de negocio
         específica de la tabla.
@@ -56,7 +56,7 @@ class DataCleaner(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def handle_duplicates(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def handle_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Implementa lógica de manejo de duplicados con lógica de negocio
         específica de la tabla.
@@ -64,7 +64,7 @@ class DataCleaner(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def convert_types(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def convert_types(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Implementa lógica de manejo de conversión de tipos con lógica de negocio
         específica de la tabla.
@@ -72,7 +72,7 @@ class DataCleaner(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def validate_cleaned_data(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def validate_cleaned_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Implementa lógica de manejo de validación post-limpieza con lógica de negocio
         específica de la tabla.
