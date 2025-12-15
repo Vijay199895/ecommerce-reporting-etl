@@ -6,8 +6,8 @@ from typing import Dict, List
 
 import pandas as pd
 
+from exceptions import CleaningInvariantError
 from transform.cleaners.base_cleaner import DataCleaner, NullStrategy
-from utils.logger import transform_logger
 from utils.validators import SchemaValidator
 
 
@@ -36,22 +36,12 @@ class OrdersCleaner(DataCleaner):
 
     DATE_COLUMNS: List[str] = ["order_date"]
 
-    def __init__(self, logger=transform_logger):
-        super().__init__(logger=logger)
-
-    def handle_nulls(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def handle_nulls(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Descarta órdenes sin claves principales y rellena importes con medias o ceros para mantener consistencia financiera.
+        Verifica que no hayan nulos en claves principales y rellena importes con medias o ceros para mantener consistencia financiera.
         """
-        before_drop = len(df)
-        df = df.dropna(subset=["order_id", "customer_id", "order_date"]).copy()
-        dropped = before_drop - len(df)
-        if dropped > 0:
-            self.logger.warning(
-                "Filas descartadas por nulos en claves críticas: %s (%.2f%%)",
-                dropped,
-                dropped * 100 / max(before_drop, 1),
-            )
+        null_validator = SchemaValidator(df, self.logger)
+        null_validator.validate_no_nulls(["order_id", "customer_id", "order_date"])
 
         # Estrategias específicas por columna
         strategies: Dict[str, NullStrategy] = {
@@ -63,9 +53,9 @@ class OrdersCleaner(DataCleaner):
         }
 
         for column, strategy in strategies.items():
-            before_na = df[column].isna().sum() if column in df.columns else 0
+            before_na = df[column].isna().sum()
             df = self._fill_column(df, column, strategy)
-            after_na = df[column].isna().sum() if column in df.columns else 0
+            after_na = df[column].isna().sum()
             filled = before_na - after_na
             if filled > 0:
                 self.logger.info(
@@ -75,13 +65,16 @@ class OrdersCleaner(DataCleaner):
                     filled,
                 )
             if after_na > before_na:
-                raise ValueError(
-                    f"Aumento de nulos en '{column}' tras estrategia {strategy.value} ({before_na} -> {after_na})"
+                raise CleaningInvariantError(
+                    invariant="Los nulos no deben aumentar tras aplicar estrategia de relleno",
+                    logger=self.logger,
+                    column=column,
+                    details=f"Estrategia {strategy.value}: antes={before_na}, después={after_na}",
                 )
 
         return df
 
-    def handle_duplicates(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def handle_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Elimina duplicados por order_id conservando la versión más reciente para asegurar unicidad de la orden.
         """
@@ -92,7 +85,7 @@ class OrdersCleaner(DataCleaner):
             self.logger.info("Filas duplicadas eliminadas en órdenes: %s", removed)
         return df
 
-    def convert_types(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def convert_types(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Convierte importes, ids y fechas a tipos numéricos/fecha,
         y recalcula total_amount cuando falte usando sus componentes.
@@ -146,13 +139,12 @@ class OrdersCleaner(DataCleaner):
                 )
         return df
 
-    def validate_cleaned_data(self, df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def validate_cleaned_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Verifica presencia de columnas requeridas y tipos esperados para asegurar consistencia previa al enriquecimiento.
         """
         validator = SchemaValidator(df, self.logger)
         validator.validate_required_columns(self.REQUIRED_COLUMNS)
-
         expected_types = {
             "order_id": "int64",
             "customer_id": "int64",
@@ -160,5 +152,13 @@ class OrdersCleaner(DataCleaner):
             "total_amount": "float",
         }
         validator.validate_data_types(expected_types)
+        validator.validate_numeric_range(column="subtotal", min_value=0)
+        validator.validate_numeric_range(column="total_amount", min_value=0)
+        validator.validate_numeric_range(
+            column="discount_percent", min_value=0, max_value=100
+        )
+        validator.validate_numeric_range(column="shipping_cost", min_value=0)
+        validator.validate_numeric_range(column="tax_amount", min_value=0)
+        validator.validate_unique_values(columns=["order_id"])
 
         return df
