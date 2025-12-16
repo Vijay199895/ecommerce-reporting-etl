@@ -8,8 +8,6 @@ from typing import Any, Dict
 
 import pandas as pd
 
-from utils.logger import load_logger
-
 
 class BaseLoader(ABC):
     """
@@ -27,7 +25,6 @@ class BaseLoader(ABC):
             "target": None,
             "load_timestamp": None,
         }
-        self.logger = load_logger
 
     @abstractmethod
     def save(self, df: pd.DataFrame, name: str) -> None:
@@ -59,7 +56,6 @@ class BaseLoader(ABC):
             target_location (Any): Ubicación o identificador del destino
 
         Raises:
-            #TODO: implementar excepción personalizada
             TargetNotFoundError: Si el destino no existe
         """
         raise NotImplementedError()
