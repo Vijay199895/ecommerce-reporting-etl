@@ -105,8 +105,7 @@ class OrdersEnricher:
     def _add_derived_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         df["order_month"] = df["order_date"].dt.to_period("M")
         df["order_week"] = df["order_date"].dt.to_period("W")
-        # TODO aqui verificaría que sea distinto de 0
-        df["used_promotion"] = df["promotion_id"].notna()
+        df["used_promotion"] = df["promotion_id"] != 0
         df["is_free_shipping"] = df["shipping_cost"].fillna(0) == 0
         df["is_high_discount"] = df["discount_percent"].fillna(0) >= 20
         return df
