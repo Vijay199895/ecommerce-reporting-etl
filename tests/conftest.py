@@ -399,6 +399,8 @@ def raw_orders_valid_keys() -> pd.DataFrame:
             "shipping_cost": [None, 5.0, None],
             "tax_amount": [8.0, None, 4.0],
             "total_amount": [None, 150.0, None],
+            "notes": [None, "Urgent", None],
+            "promotion_id": [None, 100, None],
         }
     )
 

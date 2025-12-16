@@ -36,7 +36,7 @@ class OrdersCleaner(DataCleaner):
         "total_amount",
     ]
 
-    ID_COLUMNS: List[str] = ["order_id", "customer_id"]
+    ID_COLUMNS: List[str] = ["order_id", "customer_id", "promotion_id"]
 
     DATE_COLUMNS: List[str] = ["order_date"]
 
@@ -48,15 +48,14 @@ class OrdersCleaner(DataCleaner):
         null_validator = SchemaValidator(df, transform_logger)
         null_validator.validate_no_nulls(["order_id", "customer_id", "order_date"])
 
-        # TODO agregar estrategia para columna 'notes'
-        # TODO agregar estrategia para columna 'promotion_id' -> rellenar con 0 para simular sin promoción
-        # Estrategias específicas por columna
         strategies: Dict[str, NullStrategy] = {
             "subtotal": NullStrategy.FILL_MEAN,
             "total_amount": NullStrategy.FILL_MEAN,
             "discount_percent": NullStrategy.FILL_ZERO,
             "shipping_cost": NullStrategy.FILL_ZERO,
             "tax_amount": NullStrategy.FILL_ZERO,
+            "notes": NullStrategy.FILL_STRING,
+            "promotion_id": NullStrategy.FILL_ZERO
         }
 
         for column, strategy in strategies.items():

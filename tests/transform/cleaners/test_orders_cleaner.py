@@ -59,8 +59,12 @@ class TestOrdersCleanerNulls:
         cleaned = cleaner.handle_nulls(raw_orders_valid_keys.copy())
 
         check.equal(len(cleaned), 3)
+        check.equal(cleaned["notes"].isna().sum(), 0)
+        check.equal(cleaned["promotion_id"].isna().sum(), 0)
         check.equal(cleaned["shipping_cost"].isna().sum(), 0)
         check.equal(cleaned["discount_percent"].isna().sum(), 0)
+        check.equal(cleaned["subtotal"].isna().sum(), 0)
+        check.equal(cleaned["total_amount"].isna().sum(), 0)
 
 
 @pytest.mark.unit
