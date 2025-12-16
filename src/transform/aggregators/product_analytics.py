@@ -4,7 +4,7 @@ Agregaciones y métricas de productos.
 
 import pandas as pd
 
-from utils.logger import transform_logger
+from utils.logger import transform_logger, log_table_processing
 
 
 class ProductAnalyticsAggregator:
@@ -12,9 +12,9 @@ class ProductAnalyticsAggregator:
     Calcula métricas clave de performance de productos a partir de ítems de orden.
     """
 
-    def __init__(self):
-        self.logger = transform_logger
-
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="order_items | products"
+    )
     def top_products_by_quantity(
         self,
         order_items_df: pd.DataFrame,
@@ -29,7 +29,7 @@ class ProductAnalyticsAggregator:
             order_items_df: DataFrame que relaciona productos con órdenes
             products_df: DataFrame de productos
             top_n: Número de productos a retornar (default: 10)
-            
+
         Returns:
             DataFrame con los productos más vendidos por unidades
         """
@@ -45,9 +45,11 @@ class ProductAnalyticsAggregator:
             how="left",
         )
         result = grouped.sort_values("total_units", ascending=False).head(top_n)
-        self.logger.info("Top productos por unidades calculados: %s", len(result))
         return result
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="order_items | products"
+    )
     def top_products_by_revenue(
         self,
         order_items_df: pd.DataFrame,
@@ -62,7 +64,7 @@ class ProductAnalyticsAggregator:
             order_items_df: DataFrame que relaciona productos con órdenes
             products_df: DataFrame de productos
             top_n: Número de productos a retornar (default: 10)
-            
+
         Returns:
             DataFrame con los productos más vendidos por revenue
         """
@@ -78,5 +80,4 @@ class ProductAnalyticsAggregator:
             how="left",
         )
         result = grouped.sort_values("revenue", ascending=False).head(top_n)
-        self.logger.info("Top productos por revenue calculados: %s", len(result))
         return result

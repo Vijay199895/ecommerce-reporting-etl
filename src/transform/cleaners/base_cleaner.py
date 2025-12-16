@@ -8,7 +8,7 @@ from typing import Any
 
 import pandas as pd
 
-from utils.logger import transform_logger
+from utils.logger import transform_logger, log_table_processing
 
 
 class NullStrategy(Enum):
@@ -29,22 +29,18 @@ class DataCleaner(ABC):
     Clase base para limpiadores de tablas.
     Orquesta pasos comunes: nulos, duplicados, conversión de tipos y validación final.
     """
+    
+    TABLE_NAME: str = "base_table"
 
-    def __init__(self):
-        self.logger = transform_logger
-
+    @log_table_processing(stage="clean", logger=transform_logger)
     def clean(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Ejecuta el pipeline de limpieza y devuelve un nuevo DataFrame.
         """
-        self.logger.info("Iniciando limpieza: %s filas", len(df))
-
         df = self.handle_nulls(df.copy())
         df = self.handle_duplicates(df)
         df = self.convert_types(df)
         df = self.validate_cleaned_data(df)
-
-        self.logger.info("Limpieza completada: %s filas", len(df))
         return df
 
     @abstractmethod

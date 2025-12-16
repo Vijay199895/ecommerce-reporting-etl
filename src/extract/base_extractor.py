@@ -8,8 +8,6 @@ from datetime import datetime
 
 import pandas as pd
 
-from utils.logger import extract_logger
-
 
 class BaseExtractor(ABC):
     """
@@ -26,7 +24,6 @@ class BaseExtractor(ABC):
             "extraction_timestamp": None,
             "extractor_type": self.__class__.__name__,
         }
-        self.logger = extract_logger
 
     @abstractmethod
     def extract(self, name: str) -> pd.DataFrame:
@@ -60,7 +57,6 @@ class BaseExtractor(ABC):
             source_location (Any): Ubicación o identificador de la fuente
 
         Raises:
-            #TODO: implementar excepción personalizada
             SourceNotFoundError: Si la fuente no existe
         """
         raise NotImplementedError()

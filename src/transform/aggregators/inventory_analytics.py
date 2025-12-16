@@ -4,7 +4,7 @@ Métricas de salud de inventario.
 
 import pandas as pd
 
-from utils.logger import transform_logger
+from utils.logger import transform_logger, log_table_processing
 
 
 class InventoryAnalyticsAggregator:
@@ -12,9 +12,9 @@ class InventoryAnalyticsAggregator:
     Agrega indicadores de stock y utilización de bodegas a partir de inventario enriquecido.
     """
 
-    def __init__(self):
-        self.logger = transform_logger
-
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_inventory"
+    )
     def stock_health_summary(self, enriched_inventory_df: pd.DataFrame) -> pd.DataFrame:
         """
         Resume la salud de stock contando total de registros, casos en low_stock y overstock,
@@ -40,11 +40,11 @@ class InventoryAnalyticsAggregator:
                 ],
             }
         )
-        self.logger.info(
-            "Salud de inventario: %s low, %s overstock de %s", low, over, total
-        )
         return summary
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_inventory"
+    )
     def low_stock_items(
         self, enriched_inventory_df: pd.DataFrame, top_n: int = 20
     ) -> pd.DataFrame:
@@ -71,9 +71,11 @@ class InventoryAnalyticsAggregator:
             "min_stock_level",
             "stock_gap",
         ]
-        self.logger.info("Low stock listado generado: %s filas", len(filtered))
         return filtered[cols]
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_inventory"
+    )
     def warehouse_utilization(
         self, enriched_inventory_df: pd.DataFrame
     ) -> pd.DataFrame:
@@ -101,5 +103,4 @@ class InventoryAnalyticsAggregator:
         grouped["utilization"] = grouped["total_units"] / grouped["capacity_units"]
         # Ordeno de menor a mayor utilización
         grouped = grouped.sort_values("utilization")
-        self.logger.info("Utilización por bodega calculada: %s filas", len(grouped))
         return grouped

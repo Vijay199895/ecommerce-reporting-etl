@@ -4,7 +4,7 @@ Agregador para el ciclo de vida de órdenes (funnel de estado).
 
 import pandas as pd
 
-from utils.logger import transform_logger
+from utils.logger import transform_logger, log_table_processing
 
 
 class OrderLifecycleAggregator:
@@ -12,9 +12,9 @@ class OrderLifecycleAggregator:
     Calcula métricas de estado de órdenes: funnel por status, cancelación, entregas y backlog.
     """
 
-    def __init__(self):
-        self.logger = transform_logger
-
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def status_funnel(self, enriched_orders_df: pd.DataFrame) -> pd.DataFrame:
         """
         Cuenta órdenes por status, calcula la participación de cada estado y devuelve el funnel
@@ -30,9 +30,11 @@ class OrderLifecycleAggregator:
         counts.columns = ["status", "orders"]
         total = counts["orders"].sum()
         counts["share"] = counts["orders"] / total if total else 0
-        self.logger.info("Funnel por estado generado: %s estados", len(counts))
         return counts
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def cancellation_rate(self, enriched_orders_df: pd.DataFrame) -> float:
         """
         Calcula la tasa de cancelación sobre el total de órdenes disponibles.
@@ -44,9 +46,11 @@ class OrderLifecycleAggregator:
             Tasa de cancelación como float
         """
         rate = (enriched_orders_df["status"].str.lower() == "cancelled").mean()
-        self.logger.info("Tasa de cancelación: %.2f", rate)
         return float(rate)
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def in_progress_backlog(self, enriched_orders_df: pd.DataFrame) -> pd.DataFrame:
         """
         Filtra órdenes en curso (pending, processing, shipped), agrega backlog por mes en conteo
@@ -71,9 +75,11 @@ class OrderLifecycleAggregator:
             .reset_index()
             .sort_values("order_month")
         )
-        self.logger.info("Backlog en progreso calculado: %s periodos", len(grouped))
         return grouped
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def delivery_rate(self, enriched_orders_df: pd.DataFrame) -> float:
         """
         Calcula la tasa de entrega sobre el total de órdenes.
@@ -85,5 +91,4 @@ class OrderLifecycleAggregator:
             Tasa de entrega como float
         """
         rate = (enriched_orders_df["status"].str.lower() == "delivered").mean()
-        self.logger.info("Tasa de entrega: %.2f", rate)
         return float(rate)

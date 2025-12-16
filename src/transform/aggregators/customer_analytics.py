@@ -6,7 +6,7 @@ from typing import Optional
 
 import pandas as pd
 
-from utils.logger import transform_logger
+from utils.logger import transform_logger, log_table_processing
 
 
 class CustomerAnalyticsAggregator:
@@ -14,9 +14,9 @@ class CustomerAnalyticsAggregator:
     Responde preguntas de negocio sobre clientes a partir de órdenes enriquecidas.
     """
 
-    def __init__(self):
-        self.logger = transform_logger
-
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def top_spenders(
         self,
         enriched_orders_df: pd.DataFrame,
@@ -53,9 +53,11 @@ class CustomerAnalyticsAggregator:
             grouped = grouped[grouped["total_spent"] >= threshold]
 
         result = grouped.sort_values("total_spent", ascending=False).head(top_n)
-        self.logger.info("Top spenders calculados: %s clientes", len(result))
         return result
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def recurring_customers(
         self, enriched_orders_df: pd.DataFrame, min_orders: int = 2
     ) -> pd.DataFrame:
@@ -77,11 +79,11 @@ class CustomerAnalyticsAggregator:
             .reset_index()
         )
         recurring = grouped[grouped["total_orders"] >= min_orders]
-        self.logger.info(
-            "Clientes recurrentes (>= %s órdenes): %s", min_orders, len(recurring)
-        )
         return recurring.sort_values("total_orders", ascending=False)
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_orders"
+    )
     def average_ticket_overall(self, enriched_orders_df: pd.DataFrame) -> float:
         """
         Calcula el ticket promedio global considerando el total_amount de todas las órdenes
@@ -94,5 +96,4 @@ class CustomerAnalyticsAggregator:
             Ticket promedio como float
         """
         avg_ticket = enriched_orders_df["total_amount"].mean()
-        self.logger.info("Ticket promedio calculado: %.2f", avg_ticket)
         return float(avg_ticket) if pd.notna(avg_ticket) else 0.0

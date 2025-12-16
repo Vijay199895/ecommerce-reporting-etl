@@ -10,11 +10,15 @@ from exceptions import CleaningInvariantError
 from transform.cleaners.base_cleaner import DataCleaner, NullStrategy
 from utils.validators import SchemaValidator
 
+from utils.logger import transform_logger, log_substep
+
 
 class OrdersCleaner(DataCleaner):
     """
     Clase que implementa lógica de negocio específica para limpiar tabla "orders".
     """
+
+    TABLE_NAME: str = "orders"
 
     REQUIRED_COLUMNS: List[str] = [
         "order_id",
@@ -36,13 +40,16 @@ class OrdersCleaner(DataCleaner):
 
     DATE_COLUMNS: List[str] = ["order_date"]
 
+    @log_substep(substep_name="Manejo de nulos", logger=transform_logger)
     def handle_nulls(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Verifica que no hayan nulos en claves principales y rellena importes con medias o ceros para mantener consistencia financiera.
         """
-        null_validator = SchemaValidator(df, self.logger)
+        null_validator = SchemaValidator(df, transform_logger)
         null_validator.validate_no_nulls(["order_id", "customer_id", "order_date"])
 
+        # TODO agregar estrategia para columna 'notes'
+        # TODO agregar estrategia para columna 'promotion_id' -> rellenar con 0 para simular sin promoción
         # Estrategias específicas por columna
         strategies: Dict[str, NullStrategy] = {
             "subtotal": NullStrategy.FILL_MEAN,
@@ -58,7 +65,7 @@ class OrdersCleaner(DataCleaner):
             after_na = df[column].isna().sum()
             filled = before_na - after_na
             if filled > 0:
-                self.logger.info(
+                transform_logger.info(
                     "Valores rellenados en '%s' con estrategia %s: %s",
                     column,
                     strategy.value,
@@ -67,13 +74,14 @@ class OrdersCleaner(DataCleaner):
             if after_na > before_na:
                 raise CleaningInvariantError(
                     invariant="Los nulos no deben aumentar tras aplicar estrategia de relleno",
-                    logger=self.logger,
+                    logger=transform_logger,
                     column=column,
                     details=f"Estrategia {strategy.value}: antes={before_na}, después={after_na}",
                 )
 
         return df
 
+    @log_substep(substep_name="Manejo de duplicados", logger=transform_logger)
     def handle_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Elimina duplicados por order_id conservando la versión más reciente para asegurar unicidad de la orden.
@@ -82,9 +90,10 @@ class OrdersCleaner(DataCleaner):
         df = df.drop_duplicates(subset=["order_id"], keep="last")
         removed = before - len(df)
         if removed > 0:
-            self.logger.info("Filas duplicadas eliminadas en órdenes: %s", removed)
+            transform_logger.info("Filas duplicadas eliminadas en órdenes: %s", removed)
         return df
 
+    @log_substep(substep_name="Conversión de tipos", logger=transform_logger)
     def convert_types(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Convierte importes, ids y fechas a tipos numéricos/fecha,
@@ -94,19 +103,19 @@ class OrdersCleaner(DataCleaner):
             if col in df.columns:
                 before_na = df[col].isna().sum()
                 df[col] = df[col].astype("int64")
-                self._log_coercion_stats(df, col, self.logger, before_na)
+                self._log_coercion_stats(df, col, transform_logger, before_na)
 
         for col in self.NUMERIC_COLUMNS:
             if col in df.columns:
                 before_na = df[col].isna().sum()
                 df[col] = pd.to_numeric(df[col], errors="coerce")
-                self._log_coercion_stats(df, col, self.logger, before_na)
+                self._log_coercion_stats(df, col, transform_logger, before_na)
 
         for col in self.DATE_COLUMNS:
             if col in df.columns:
                 before_na = df[col].isna().sum()
                 df[col] = pd.to_datetime(df[col], errors="coerce")
-                self._log_coercion_stats(df, col, self.logger, before_na)
+                self._log_coercion_stats(df, col, transform_logger, before_na)
 
         if "total_amount" in df.columns:
             needs_recalc = df["total_amount"].isna()
@@ -127,23 +136,24 @@ class OrdersCleaner(DataCleaner):
                     )
                 )
                 if len(idx) > 0:
-                    self.logger.info(
+                    transform_logger.info(
                         "total_amount recalculado para %s filas con componentes disponibles",
                         len(idx),
                     )
             still_nan = df["total_amount"].isna() & df["subtotal"].isna()
             if still_nan.any():
-                self.logger.warning(
+                transform_logger.warning(
                     "total_amount permanece NaN en %s filas porque subtotal está ausente. Revisar calidad de datos.",
                     still_nan.sum(),
                 )
         return df
 
+    @log_substep(substep_name="Validación post-limpieza", logger=transform_logger)
     def validate_cleaned_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Verifica presencia de columnas requeridas y tipos esperados para asegurar consistencia previa al enriquecimiento.
         """
-        validator = SchemaValidator(df, self.logger)
+        validator = SchemaValidator(df, transform_logger)
         validator.validate_required_columns(self.REQUIRED_COLUMNS)
         expected_types = {
             "order_id": "int64",

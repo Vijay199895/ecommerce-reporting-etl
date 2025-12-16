@@ -4,7 +4,7 @@ Métricas de calidad y volumen de reviews.
 
 import pandas as pd
 
-from utils.logger import transform_logger
+from utils.logger import transform_logger, log_table_processing
 
 
 class ReviewAnalyticsAggregator:
@@ -12,9 +12,9 @@ class ReviewAnalyticsAggregator:
     Agrega indicadores de satisfacción y volumen a partir de reseñas enriquecidas.
     """
 
-    def __init__(self):
-        self.logger = transform_logger
-
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_reviews"
+    )
     def rating_overview(self, enriched_reviews_df: pd.DataFrame) -> pd.DataFrame:
         """
         Calcula rating promedio, tasas de reseñas positivas y negativas y el volumen total.
@@ -30,9 +30,11 @@ class ReviewAnalyticsAggregator:
                 "review_count": [len(enriched_reviews_df)],
             }
         )
-        self.logger.info("Overview de reviews calculado")
         return overview
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_reviews"
+    )
     def rating_by_product(
         self, enriched_reviews_df: pd.DataFrame, min_reviews: int = 5, top_n: int = 20
     ) -> pd.DataFrame:
@@ -59,13 +61,11 @@ class ReviewAnalyticsAggregator:
         ranked = filtered.sort_values(
             ["average_rating", "review_count"], ascending=[False, False]
         ).head(top_n)
-        self.logger.info(
-            "Ranking de productos con %s mínimos generado: %s filas",
-            min_reviews,
-            len(ranked),
-        )
         return ranked
 
+    @log_table_processing(
+        stage="aggregate", logger=transform_logger, table_name="enriched_reviews"
+    )
     def monthly_review_volume(self, enriched_reviews_df: pd.DataFrame) -> pd.DataFrame:
         """
         Agrega volumen de reseñas y rating promedio por mes.
@@ -78,8 +78,5 @@ class ReviewAnalyticsAggregator:
             .agg(volume=("review_id", "count"), average_rating=("rating", "mean"))
             .reset_index()
             .sort_values("review_month")
-        )
-        self.logger.info(
-            "Volumen mensual de reviews calculado: %s periodos", len(grouped)
         )
         return grouped

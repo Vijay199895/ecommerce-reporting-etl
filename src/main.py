@@ -1,7 +1,8 @@
 """
 Punto de entrada principal para el proceso ETL.
 
-Orquesta las etapas de extracción, transformación y carga.
+Orquesta las etapas de extracción, transformación y carga con logging
+profesional, trazabilidad completa y resumen ejecutivo.
 
 # TODO: pensar en una mejor estructura para el orquestador (Cron, excepciones, retries, alertas, etc.)
 """
@@ -12,6 +13,9 @@ from typing import Dict
 import pandas as pd
 
 from extract.csv_extractor import CSVExtractor
+from transform.cleaners.orders_cleaner import OrdersCleaner
+from transform.cleaners.inventory_cleaner import InventoryCleaner
+from transform.cleaners.reviews_cleaner import ReviewsCleaner
 from transform.enrichers.orders_enricher import OrdersEnricher
 from transform.enrichers.inventory_enricher import InventoryEnricher
 from transform.enrichers.reviews_enricher import ReviewsEnricher
@@ -23,6 +27,15 @@ from transform.aggregators.review_analytics import ReviewAnalyticsAggregator
 from transform.aggregators.order_lifecycle import OrderLifecycleAggregator
 from load.csv_loader import CSVLoader
 from load.parquet_loader import ParquetLoader
+from utils.logger import (
+    pipeline_logger,
+    extract_logger,
+    transform_logger,
+    load_logger,
+    run_context,
+    log_stage,
+    print_summary_report,
+)
 
 
 RAW_DATA_DIR = str(Path(__file__).resolve().parent.parent / "data" / "raw")
@@ -30,6 +43,7 @@ PROCESSED_DIR = str(Path(__file__).resolve().parent.parent / "data" / "processed
 OUTPUT_DIR = str(Path(__file__).resolve().parent.parent / "data" / "output")
 
 
+@log_stage("Extracción", extract_logger)
 def extract_stage() -> Dict[str, pd.DataFrame]:
     """Extrae los datasets necesarios desde CSV."""
     csv_raw = CSVExtractor(source_path=RAW_DATA_DIR)
@@ -45,15 +59,28 @@ def extract_stage() -> Dict[str, pd.DataFrame]:
         "inventory": "ecommerce_inventory",
         "warehouses": "ecommerce_warehouses",
     }
+
+    extracted_tables = {}
     for key, filename in tables.items():
-        tables[key] = csv_raw.extract(name=filename)
-    return tables
+        extracted_tables[key] = csv_raw.extract(name=filename)
+
+    # Registrar métricas de extracción
+    total_rows = sum(df.shape[0] for df in extracted_tables.values())
+    run_context.record_stage_metric(
+        "Extracción", "tables_extracted", len(extracted_tables)
+    )
+    run_context.record_stage_metric("Extracción", "total_rows_extracted", total_rows)
+
+    return extracted_tables
 
 
+@log_stage("Transformación", transform_logger)
 def transform_stage(tables: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
     """Limpia y enriquece datasets disponibles."""
 
     # Órdenes
+    orders_cleaner = OrdersCleaner()
+    tables["orders"] = orders_cleaner.clean(tables["orders"])
     orders_enricher = OrdersEnricher()
     enriched_orders = orders_enricher.enrich(
         orders_df=tables["orders"],
@@ -63,6 +90,8 @@ def transform_stage(tables: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
     )
 
     # Inventario
+    inventory_cleaner = InventoryCleaner()
+    tables["inventory"] = inventory_cleaner.clean(tables["inventory"])
     inventory_enricher = InventoryEnricher()
     enriched_inventory = inventory_enricher.enrich(
         inventory_df=tables["inventory"],
@@ -71,6 +100,8 @@ def transform_stage(tables: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
     )
 
     # Reviews
+    reviews_cleaner = ReviewsCleaner()
+    tables["reviews"] = reviews_cleaner.clean(tables["reviews"])
     reviews_enricher = ReviewsEnricher()
     enriched_reviews = reviews_enricher.enrich(
         reviews_df=tables["reviews"],
@@ -78,13 +109,23 @@ def transform_stage(tables: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
         customers_df=tables["customers"],
     )
 
-    return {
+    enriched = {
         "orders": enriched_orders,
         "inventory": enriched_inventory,
         "reviews": enriched_reviews,
     }
 
+    # Registrar métricas de transformación
+    total_enriched_rows = sum(df.shape[0] for df in enriched.values())
+    run_context.record_stage_metric("Transformación", "tables_enriched", len(enriched))
+    run_context.record_stage_metric(
+        "Transformación", "total_enriched_rows", total_enriched_rows
+    )
 
+    return enriched
+
+
+@log_stage("Agregación", transform_logger)
 def aggregate_stage(
     enriched: Dict[str, pd.DataFrame], tables: Dict[str, pd.DataFrame]
 ) -> Dict[str, pd.DataFrame]:
@@ -140,9 +181,13 @@ def aggregate_stage(
         "reviews_monthly": review_agg.monthly_review_volume(enriched_reviews),
     }
 
+    # Registrar métricas de agregación
+    run_context.record_stage_metric("Agregación", "metrics_generated", len(results))
+
     return results
 
 
+@log_stage("Carga", load_logger)
 def load_stage(
     enriched: Dict[str, pd.DataFrame], results: Dict[str, pd.DataFrame]
 ) -> None:
@@ -171,25 +216,48 @@ def load_stage(
         parquet_outputs.save(df, name=result_name)
         csv_outputs.save(df, name=result_name)
 
-
-def preview_results(results: Dict[str, pd.DataFrame]) -> None:
-    """Imprime en consola una vista corta de cada resultado."""
-
-    for name, df in results.items():
-        print("\n===", name, "===")
-        print(df.head())
+    # Registrar métricas de carga
+    total_files = (len(enriched) * 2) + (len(results) * 2)  # Parquet + CSV
+    run_context.record_stage_metric("Carga", "files_generated", total_files)
+    run_context.record_stage_metric("Carga", "enriched_datasets", len(enriched))
+    run_context.record_stage_metric("Carga", "aggregated_metrics", len(results))
 
 
 def main() -> None:
-    """Orquesta el flujo ETL."""
+    """Orquesta el flujo ETL completo con logging profesional."""
 
-    tables = extract_stage()
-    enriched = transform_stage(tables)
-    results = aggregate_stage(enriched, tables)
+    # Iniciar nueva ejecución del pipeline
+    run_id = run_context.start_run()
 
-    preview_results(results)
+    pipeline_logger.info("=" * 70)
+    pipeline_logger.info("      INICIANDO PIPELINE ETL - ECOMMERCE REPORTING")
+    pipeline_logger.info("=" * 70)
+    pipeline_logger.info(f"Run ID: {run_id}")
+    pipeline_logger.info(f"Directorio datos crudos: {RAW_DATA_DIR}")
+    pipeline_logger.info(f"Directorio procesados: {PROCESSED_DIR}")
+    pipeline_logger.info(f"Directorio output: {OUTPUT_DIR}")
+    pipeline_logger.info("-" * 70)
 
-    load_stage(enriched, results)
+    try:
+        # Ejecutar etapas del pipeline
+        tables = extract_stage()
+        enriched = transform_stage(tables)
+        results = aggregate_stage(enriched, tables)
+        load_stage(enriched, results)
+
+        pipeline_logger.info("-" * 70)
+        pipeline_logger.info("      PIPELINE ETL COMPLETADO EXITOSAMENTE")
+        pipeline_logger.info("-" * 70)
+
+    except Exception as e:
+        pipeline_logger.error("-" * 70)
+        pipeline_logger.error(f"      PIPELINE ETL FALLIDO: {e}")
+        pipeline_logger.error("-" * 70)
+        raise
+
+    finally:
+        # Siempre imprimir resumen, incluso si falla
+        print_summary_report(pipeline_logger)
 
 
 if __name__ == "__main__":

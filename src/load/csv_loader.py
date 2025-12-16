@@ -8,6 +8,7 @@ import pandas as pd
 
 from exceptions import LoadWriteError, TargetNameNotSpecifiedError, TargetNotFoundError
 from load.base_loader import BaseLoader
+from utils.logger import log_io_operation, load_logger
 
 
 class CSVLoader(BaseLoader):
@@ -38,7 +39,7 @@ class CSVLoader(BaseLoader):
             TargetNotFoundError: Si el directorio de destino no existe
         """
         super().__init__()
-        self._validate_target_exists(Path(target_path))
+        self._validate_target_exists(target_location=Path(target_path))
         self.target_path = Path(target_path)
         self.target_description = str(self.target_path)
         self.encoding = encoding
@@ -54,6 +55,7 @@ class CSVLoader(BaseLoader):
             }
         )
 
+    @log_io_operation(operation="Carga de datos en formato CSV", logger=load_logger)
     def save(self, df: pd.DataFrame, name: str) -> None:
         """
         Carga datos hacia un archivo CSV.
@@ -65,7 +67,7 @@ class CSVLoader(BaseLoader):
 
         if not name:
             raise TargetNameNotSpecifiedError(
-                logger=self.logger, loader_type="CSVLoader"
+                logger=load_logger, loader_type="CSVLoader"
             )
 
         target_path = self.target_path / f"{name}.csv"
@@ -79,7 +81,7 @@ class CSVLoader(BaseLoader):
         except PermissionError as exc:
             raise LoadWriteError(
                 str(target_path),
-                logger=self.logger,
+                logger=load_logger,
                 original_error=exc,
                 context={
                     "rows": len(df),
@@ -91,7 +93,7 @@ class CSVLoader(BaseLoader):
         except OSError as exc:
             raise LoadWriteError(
                 str(target_path),
-                logger=self.logger,
+                logger=load_logger,
                 original_error=exc,
                 context={
                     "rows": len(df),
@@ -103,7 +105,7 @@ class CSVLoader(BaseLoader):
         except Exception as exc:
             raise LoadWriteError(
                 str(target_path),
-                logger=self.logger,
+                logger=load_logger,
                 original_error=exc,
                 context={
                     "rows": len(df),
@@ -114,11 +116,9 @@ class CSVLoader(BaseLoader):
 
         self._profile_data_after_load(target_path)
 
-        # Una vez el profiling completo se ha hecho, se puede loguear el resumen
-        summary = self.get_summary()
-        success_msg = f"Archivo CSV guardado en {target_path}:\n{summary}"
-        self.logger.info(success_msg)
-
+    @log_io_operation(
+        operation="Validar existencia del directorio de destino", logger=load_logger
+    )
     def _validate_target_exists(self, target_location: Path) -> None:
         """
         Verifica que el destino de datos especificada existe.
@@ -131,11 +131,8 @@ class CSVLoader(BaseLoader):
         """
         if not target_location.exists():
             raise TargetNotFoundError(
-                str(target_location), logger=self.logger, target_type="directorio"
+                str(target_location), logger=load_logger, target_type="directorio"
             )
-        success_msg = f"Directorio de destino encontrado: {target_location}"
-        self.logger.info(success_msg)
-        print(success_msg)
 
     def _profile_data_after_load(self, after_load_info: Path) -> None:
         """
