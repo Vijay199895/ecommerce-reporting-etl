@@ -348,7 +348,9 @@ def log_table_processing(stage: str, logger: logging.Logger, table_name: str = "
 
                 # Intentar obtener el número de filas del resultado
                 rows = _get_row_count(result)
-                run_context.record_table_metric(actual_table_name, stage, rows, duration_ms)
+                run_context.record_table_metric(
+                    actual_table_name, stage, rows, duration_ms
+                )
 
                 logger.info(
                     f"Procesamiento completado de la tabla {actual_table_name} en la etapa {stage}: "
@@ -363,7 +365,9 @@ def log_table_processing(stage: str, logger: logging.Logger, table_name: str = "
                     f"Error en procesamiento de la tabla {actual_table_name} en la etapa {stage} tras {duration_ms:.1f}ms: {e}"
                 )
                 # Opcional: registrar métrica de tabla fallida con 0 filas
-                run_context.record_table_metric(actual_table_name, stage, 0, duration_ms)
+                run_context.record_table_metric(
+                    actual_table_name, stage, 0, duration_ms
+                )
                 raise
 
         return wrapper
@@ -468,13 +472,30 @@ def print_summary_report(logger: logging.Logger):
     logger.info(f"  Errores:          {summary['errors_count']}")
     logger.info(separator)
 
-    # Métricas por etapa
+    # Métricas por etapa con detalles específicos
     if summary["stage_metrics"]:
         logger.info("  MÉTRICAS POR ETAPA:")
         for stage, metrics in summary["stage_metrics"].items():
             duration = metrics.get("duration_ms", 0)
             status = metrics.get("status", "N/A")
-            logger.info(f"      {stage:15} → {status:8} ({_format_duration(duration)})")
+
+            # Construir detalles específicos según la etapa
+            details = ""
+            if "tables_extracted" in metrics:
+                tables = metrics["tables_extracted"]
+                rows = metrics.get("total_rows_extracted", 0)
+                details = f" │ {tables} tablas, {rows:,} filas"
+            elif "tables_enriched" in metrics:
+                enriched = metrics["tables_enriched"]
+                metrics_gen = metrics.get("metrics_generated", 0)
+                details = f" │ {enriched} enriquecidas, {metrics_gen} métricas"
+            elif "files_generated" in metrics:
+                files = metrics["files_generated"]
+                details = f" │ {files} archivos guardados"
+
+            logger.info(
+                f"      {stage:15} → {status:8} ({_format_duration(duration)}){details}"
+            )
         logger.info(separator)
 
     # Detección de cuellos de botella
