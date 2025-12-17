@@ -1,209 +1,140 @@
 # E-commerce Reporting ETL
 
-![CI
-Status](https://github.com/Gerardo1909/ecommerce-reporting-etl/actions/workflows/ci.yml/badge.svg)
+![CI Status](https://github.com/Gerardo1909/ecommerce-reporting-etl/actions/workflows/ci.yml/badge.svg)
 
-## Descripción del Proyecto
+<p align="center">
+  <img src="resources/gif_consola_etl_ecommerce.gif" alt="ETL Pipeline en acción" width="800"/>
+</p>
 
-Pipeline automatizado de ETL (Extract, Transform, Load) diseñado para procesar y analizar datos transaccionales de e-commerce, generando métricas de negocio críticas para la toma de decisiones estratégicas.
+## Overview
 
-### Contexto del Negocio
+Pipeline ETL que automatiza la generación de métricas de negocio para **NovaMart**, un e-commerce en crecimiento. Transforma 11 tablas transaccionales en 17 métricas accionables, reduciendo el tiempo de procesamiento de 2 horas manuales a segundos.
 
-**NovaMart**, una empresa de e-commerce en crecimiento, enfrentaba desafíos significativos en la generación de reportes analíticos. El proceso manual de extracción y preparación de datos consumía 2 horas diarias del equipo de Business, resultando en información con 24 horas de antigüedad y vulnerable a errores humanos. Este sistema automatizado elimina la dependencia de procesos manuales, reduciendo el tiempo de procesamiento y mejorando la precisión de los datos.
+**Stack:** Python 3.13 · Pandas · PyArrow · Pytest
 
-### Problema Resuelto
+## Arquitectura
 
-La generación manual de reportes limitaba la capacidad de respuesta ante:
-- Agotamiento de stock (stock-outs)
-- Efectividad de promociones
-- Picos de demanda inesperados
-- Identificación de tendencias de venta
+<p align="center">
+  <img src="resources/etl_work_flow.png" alt="Flujo ETL" width="700"/>
+</p>
 
-Este pipeline ETL automatiza el procesamiento de más de 10 tablas transaccionales, transformando datos crudos en insights accionables.
+> 📖 Documentación detallada en [docs/](docs/)
 
-## Características Principales
+## Input / Output
 
-- **Extracción**: Ingesta automática de datos desde múltiples fuentes CSV (órdenes, inventario, clientes, productos, etc.)
-- **Limpieza de Datos**: 
-  - Imputación inteligente de valores nulos usando promedios por categoría
-  - Deduplicación automática 
-- **Transformación**: Cálculo de métricas clave de negocio
-- **Carga**: Exportación optimizada en formato Parquet (reducción de tamaño de 8x)
+| Input | Output |
+|-------|--------|
+| 11 CSVs en `data/raw/` | 3 datasets enriquecidos (orders, inventory, reviews) |
+| ~10K registros transaccionales | 17 métricas de negocio |
+| | Formatos: Parquet (8x compresión) + CSV |
 
-### Métricas Generadas
+**Métricas generadas:** top_spenders, recurring_customers, monthly_sales, promotion_usage_rate, stock_health, low_stock_items, rating_overview, status_funnel, cancellation_rate, entre otras.
 
-1. **Clientes Top**: Identificación del 20% de clientes que generan el 65% de las ventas
-2. **Productos Más Vendidos**: Análisis de tendencias mensuales de productos
-3. **Tasa de Uso de Promociones**: Evaluación de efectividad de campañas promocionales
-4. **Análisis de Inventario**: Disponibilidad y rotación de productos
-
-## Estructura del Proyecto (archivos y directorios más importantes)
+## Estructura de directorios del proyecto
 
 ```
 ecommerce-reporting-etl/
-├── config/                 # Archivos de configuración
-├── data/                   # Ignorado en .gitignore (información sensible)
-│   ├── raw/               # Datos fuente sin procesar (CSV)
-│   ├── processed/         # Datos transformados intermedios
-│   └── output/            # Resultados finales (Parquet y CSV)
-├── logs/                  # Ignorado en .gitignore (archivos de log del proceso ETL)
-├── reports/               # Ignorado en .gitignore (reportes de pruebas en HTML)
+├── config/settings.py      # Configuración centralizada
 ├── src/
-│   ├── extract/           # Módulos de extracción de datos
-│   ├── transform/         # Módulos de transformación y limpieza
-│   ├── load/              # Módulos de carga y exportación
-│   ├── utils/             # Utilidades (logger, helpers)
-│   └── main.py            # Punto de entrada del pipeline
-├── tests/                 # Suite de pruebas unitarias
-├── pyproject.toml         # Configuración del proyecto y dependencias
-├── requirements.txt       # Dependencias del proyecto
-└── pytest.ini             # Configuración de testing
-
+│   ├── extract/            # CSVExtractor (patrón Template Method)
+│   ├── transform/
+│   │   ├── cleaners/       # OrdersCleaner, InventoryCleaner, ReviewsCleaner
+│   │   ├── enrichers/      # Joins con tablas dimensionales
+│   │   └── aggregators/    # 6 agregadores → 17 métricas
+│   ├── load/               # ParquetLoader, CSVLoader
+│   ├── pipeline/           # Orquestación extract.py, transform.py, load.py
+│   ├── exceptions/         # Jerarquía ETLError por fase
+│   └── utils/              # Logger con Run ID, validators
+├── tests/                  # Pytest con fixtures compartidas
+├── docs/                   # Documentación técnica detallada
+└── data/                   # raw/ → processed/ → output/ (ignorado por control de versiones)
 ```
 
-> **Nota de Seguridad**: Los directorios `data/`, `logs/` y `reports/` están excluidos del control de versiones mediante `.gitignore` ya que pueden contener información sensible del sistema, datos de clientes y resultados de análisis confidenciales.
+## Cómo ejecutar
 
-## Requisitos Previos
+### 1. Requisitos previos
 
-- Python 3.13 o superior
-- pip (gestor de paquetes de Python)
+| Requisito | Versión mínima | Verificar instalación |
+|-----------|----------------|----------------------|
+| Python | 3.13+ | `python --version` o `python3 --version` |
+| pip | cualquiera | `pip --version` o `pip3 --version` |
+| git | cualquiera | `git --version` |
 
-## Instalación
+### 2. Clonar el repositorio
 
-1. Clonar el repositorio:
 ```bash
 git clone https://github.com/Gerardo1909/ecommerce-reporting-etl.git
 cd ecommerce-reporting-etl
 ```
 
-2. Crear un entorno virtual (recomendado):
-```bash
+### 3. Crear y activar entorno virtual
+
+<details>
+<summary><b>🪟 Windows (PowerShell)</b></summary>
+
+```powershell
 python -m venv venv
+.\venv\Scripts\Activate.ps1
 ```
 
-3. Activar el entorno virtual:
-```bash
-# Windows
-.\venv\Scripts\activate
+> Si aparece error de permisos, ejecutar primero: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
 
-# Linux/Mac
+</details>
+
+<details>
+<summary><b>🪟 Windows (CMD)</b></summary>
+
+```cmd
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+</details>
+
+<details>
+<summary><b>🍎 macOS / 🐧 Linux</b></summary>
+
+```bash
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-4. Instalar las dependencias:
+</details>
+
+Una vez activado, verás `(venv)` al inicio de la línea de comandos.
+
+### 4. Instalar dependencias
+
 ```bash
 pip install -r requirements.txt
-```
-
-5. Instalar el paquete en modo desarrollo:
-```bash
 pip install -e .
 ```
 
-## Uso
+El flag `-e` instala el paquete en modo desarrollo (editable).
 
-### Ejecución del Pipeline ETL
+### 5. Ejecutar el pipeline
 
 ```bash
 python src/main.py
 ```
 
-El pipeline procesará automáticamente los datos desde `data/raw/` y generará los resultados en `data/output/`.
+Los resultados se generarán en `data/output/` y `data/processed/` (Parquet + CSV).
 
-### Estructura de Datos de Entrada
-
-El sistema espera los siguientes archivos CSV en el directorio `data/raw/`:
-- `ecommerce_orders.csv`
-- `ecommerce_order_items.csv`
-- `ecommerce_customers.csv`
-- `ecommerce_products.csv`
-- `ecommerce_categories.csv`
-- `ecommerce_brands.csv`
-- `ecommerce_inventory.csv`
-- `ecommerce_promotions.csv`
-- `ecommerce_reviews.csv`
-- `ecommerce_suppliers.csv`
-- `ecommerce_warehouses.csv`
-
-### Resultados
-
-El pipeline genera archivos de salida en dos formatos en el directorio `data/output/`:
-
-**Formato Parquet** (optimizado para almacenamiento y procesamiento):
-- Reducción de tamaño de 8x comparado con CSV
-- Ideal para integración con herramientas de BI y análisis de big data
-- Preserva tipos de datos y metadata
-
-**Formato CSV** (compatibilidad universal):
-- Formato ampliamente compatible que puede abrirse en Excel
-- Facilita la comparación y validación manual de resultados
-- Ideal para compartir con stakeholders no técnicos
-
-**Archivos generados**:
-- Métricas de clientes top
-- Análisis de productos más vendidos
-- Reportes de efectividad de promociones
-- Indicadores de inventario
+> ⚠️ **Importante:** El directorio `data/raw/` debe contener los 11 archivos CSV fuente para una ejecución exitosa.
 
 ## Testing
 
-El proyecto incluye una suite completa de pruebas unitarias con cobertura de código.
+Teniendo activo el entorno virtual generado en la sección anterior, simplemente con ejecutar 
+el siguiente comando en la terminal se ejecutarán todas las pruebas unitarias:
 
-### Ejecutar todas las pruebas:
 ```bash
-pytest
+pytest                              
 ```
 
-### Ejecutar pruebas con reporte de cobertura:
-```bash
-pytest --cov=src --cov-report=html
-```
+Esto generará los reportes de testing correspondientes en el directorio `reports/`.
 
-### Ejecutar pruebas específicas:
-```bash
-pytest tests/test_extract.py
-pytest tests/test_transform.py
-pytest tests/test_load.py
-```
+---
 
-Los reportes de pruebas se generan en el directorio `reports/`.
+**Autor:** Gerardo Toboso · [gerardotoboso1909@gmail.com](mailto:gerardotoboso1909@gmail.com)
 
-## Tecnologías Utilizadas
-
-- **Python 3.13**: Lenguaje de programación principal
-- **Pandas 2.3.3**: Manipulación y análisis de datos
-- **Pytest**: Framework de testing
-
-## Ventajas del Sistema
-
-1. **Eficiencia**: Reducción de 2 horas diarias a minutos de procesamiento automatizado
-2. **Precisión**: Eliminación de errores manuales en el procesamiento de datos
-3. **Escalabilidad**: Capacidad de procesar volúmenes crecientes de datos
-4. **Optimización**: Reducción de 8x en el tamaño de archivos mediante formato Parquet
-5. **Trazabilidad**: Sistema de logging completo para auditoría y debugging
-6. **Calidad**: Suite de pruebas automatizadas garantizando la integridad del proceso
-
-## Logs y Monitoreo
-
-Los logs del proceso ETL se almacenan en el directorio `logs/` con información detallada sobre:
-- Inicio y finalización de cada fase
-- Registros procesados
-- Errores y advertencias
-- Tiempo de ejecución
-
-## Contribución
-
-Este proyecto sigue las mejores prácticas de desarrollo:
-- Código modular y reutilizable
-- Documentación inline
-- Pruebas unitarias exhaustivas
-- Configuración centralizada
-
-## Autor
-
-**Gerardo Toboso**
-- Email: gerardotoboso1909@gmail.com
-
-## Licencia
-
-Este proyecto está bajo la Licencia MIT.
+**Licencia:** MIT
